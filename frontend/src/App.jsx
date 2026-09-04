@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { jsPDF } from "jspdf";
 import "./App.css";
 
-const API_URL = "http://127.0.0.1:8000";
-
+const API_URL = "https://truthtrace-107r.onrender.com";
 function App() {
   const [currentPage, setCurrentPage] = useState("dashboard");
 
