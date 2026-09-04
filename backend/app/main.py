@@ -41,6 +41,11 @@ models.Base.metadata.create_all(
 app = FastAPI(
     title="TruthTrace API"
 )
+@app.get("/")
+def root():
+    return {
+        "message": "TruthTrace API is running successfully 🚀"
+    }
 
 
 # ==================================================
