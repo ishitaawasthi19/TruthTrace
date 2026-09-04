@@ -16,13 +16,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from . import models, schemas
-
 from .analysis_service import analyze_file
-
-from .database import (
-    SessionLocal,
-    engine,
-)
+from .database import SessionLocal, engine
 
 
 # ==================================================
@@ -41,11 +36,6 @@ models.Base.metadata.create_all(
 app = FastAPI(
     title="TruthTrace API"
 )
-@app.get("/")
-def root():
-    return {
-        "message": "TruthTrace API is running successfully 🚀"
-    }
 
 
 # ==================================================
@@ -54,21 +44,47 @@ def root():
 
 app.add_middleware(
     CORSMiddleware,
+
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+
         "http://localhost:5174",
         "http://127.0.0.1:5174",
+
         "https://frontend-psi-one-iqofsvhm.vercel.app",
     ],
+
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+
+    allow_methods=[
+        "GET",
+        "POST",
+        "PUT",
+        "DELETE",
+        "OPTIONS",
+    ],
+
+    allow_headers=[
+        "*",
+    ],
 )
 
 
 # ==================================================
-# DATABASE
+# HOME / HEALTH CHECK
+# ==================================================
+
+@app.get("/")
+def home():
+
+    return {
+        "message": "TruthTrace API is running successfully 🚀"
+    }
+
+
+# ==================================================
+# DATABASE DEPENDENCY
 # ==================================================
 
 def get_db():
@@ -95,7 +111,7 @@ os.makedirs(
 
 
 # ==================================================
-# SHA-256
+# SHA-256 CALCULATION
 # ==================================================
 
 def calculate_sha256(
@@ -111,31 +127,14 @@ def calculate_sha256(
 
         while True:
 
-            data = file.read(
-                4096
-            )
+            data = file.read(4096)
 
             if not data:
                 break
 
-            sha256.update(
-                data
-            )
+            sha256.update(data)
 
     return sha256.hexdigest()
-
-
-# ==================================================
-# HOME
-# ==================================================
-
-@app.get("/")
-def home():
-
-    return {
-        "message":
-            "TruthTrace API is running"
-    }
 
 
 # ==================================================
@@ -149,15 +148,23 @@ def home():
     ],
 )
 def get_cases(
+
     db: Session = Depends(get_db),
+
 ):
 
     cases = (
-        db.query(models.Case)
+
+        db.query(
+            models.Case
+        )
+
         .order_by(
             models.Case.id.desc()
         )
+
         .all()
+
     )
 
     return cases
@@ -186,6 +193,7 @@ def create_case(
         description=case.description,
 
         status="Active",
+
     )
 
     db.add(
@@ -218,11 +226,17 @@ def get_case(
 ):
 
     case = (
-        db.query(models.Case)
+
+        db.query(
+            models.Case
+        )
+
         .filter(
             models.Case.id == case_id
         )
+
         .first()
+
     )
 
     if not case:
@@ -247,19 +261,24 @@ def update_case_status(
 
     case_id: int,
 
-    status_data:
-        schemas.CaseStatusUpdate,
+    status_data: schemas.CaseStatusUpdate,
 
     db: Session = Depends(get_db),
 
 ):
 
     case = (
-        db.query(models.Case)
+
+        db.query(
+            models.Case
+        )
+
         .filter(
             models.Case.id == case_id
         )
+
         .first()
+
     )
 
     if not case:
@@ -269,40 +288,37 @@ def update_case_status(
             detail="Case not found",
         )
 
-
     allowed_statuses = {
+
         "Active",
+
         "Analyzed",
+
         "Closed",
+
     }
 
-
-    if (
-        status_data.status
-        not in allowed_statuses
-    ):
+    if status_data.status not in allowed_statuses:
 
         raise HTTPException(
+
             status_code=400,
+
             detail=(
                 "Invalid status. "
                 "Allowed values: "
                 "Active, Analyzed, Closed"
             ),
+
         )
 
-
-    case.status = (
-        status_data.status
-    )
-
+    case.status = status_data.status
 
     db.commit()
 
     db.refresh(
         case
     )
-
 
     return case
 
@@ -325,13 +341,18 @@ async def upload_evidence(
 ):
 
     case = (
-        db.query(models.Case)
+
+        db.query(
+            models.Case
+        )
+
         .filter(
             models.Case.id == case_id
         )
-        .first()
-    )
 
+        .first()
+
+    )
 
     if not case:
 
@@ -340,26 +361,23 @@ async def upload_evidence(
             detail="Case not found",
         )
 
-
     original_file_name = (
         file.filename
         or "unnamed_file"
     )
-
 
     file_name = (
         f"{case_id}_"
         f"{original_file_name}"
     )
 
-
     file_location = os.path.join(
 
         UPLOAD_FOLDER,
 
-        file_name
-    )
+        file_name,
 
+    )
 
     with open(
         file_location,
@@ -371,20 +389,16 @@ async def upload_evidence(
             file.file,
 
             buffer,
+
         )
 
-
-    sha256_hash = (
-        calculate_sha256(
-            file_location
-        )
+    sha256_hash = calculate_sha256(
+        file_location
     )
-
 
     file_size = os.path.getsize(
         file_location
     )
-
 
     evidence = models.Evidence(
 
@@ -399,8 +413,8 @@ async def upload_evidence(
         sha256_hash=sha256_hash,
 
         case_id=case_id,
-    )
 
+    )
 
     db.add(
         evidence
@@ -411,7 +425,6 @@ async def upload_evidence(
     db.refresh(
         evidence
     )
-
 
     return {
 
@@ -435,6 +448,7 @@ async def upload_evidence(
 
         "case_id":
             evidence.case_id,
+
     }
 
 
@@ -455,11 +469,17 @@ def get_evidence(
 ):
 
     evidence = (
-        db.query(models.Evidence)
+
+        db.query(
+            models.Evidence
+        )
+
         .order_by(
             models.Evidence.id.desc()
         )
+
         .all()
+
     )
 
     return evidence
@@ -484,13 +504,18 @@ def get_case_evidence(
 ):
 
     case = (
-        db.query(models.Case)
+
+        db.query(
+            models.Case
+        )
+
         .filter(
             models.Case.id == case_id
         )
-        .first()
-    )
 
+        .first()
+
+    )
 
     if not case:
 
@@ -499,18 +524,23 @@ def get_case_evidence(
             detail="Case not found",
         )
 
-
     evidence = (
-        db.query(models.Evidence)
+
+        db.query(
+            models.Evidence
+        )
+
         .filter(
             models.Evidence.case_id == case_id
         )
+
         .order_by(
             models.Evidence.id.desc()
         )
-        .all()
-    )
 
+        .all()
+
+    )
 
     return evidence
 
@@ -531,13 +561,18 @@ def analyze_evidence(
 ):
 
     evidence = (
-        db.query(models.Evidence)
+
+        db.query(
+            models.Evidence
+        )
+
         .filter(
             models.Evidence.id == evidence_id
         )
-        .first()
-    )
 
+        .first()
+
+    )
 
     if not evidence:
 
@@ -545,7 +580,6 @@ def analyze_evidence(
             status_code=404,
             detail="Evidence not found",
         )
-
 
     analysis_result = analyze_file(
 
@@ -560,7 +594,6 @@ def analyze_evidence(
         file_size=evidence.file_size,
 
     )
-
 
     return {
 
