@@ -12,7 +12,6 @@ from fastapi import (
 )
 
 from fastapi.middleware.cors import CORSMiddleware
-
 from sqlalchemy.orm import Session
 
 from . import models, schemas
@@ -24,9 +23,7 @@ from .database import SessionLocal, engine
 # CREATE DATABASE TABLES
 # ==================================================
 
-models.Base.metadata.create_all(
-    bind=engine
-)
+models.Base.metadata.create_all(bind=engine)
 
 
 # ==================================================
@@ -34,7 +31,8 @@ models.Base.metadata.create_all(
 # ==================================================
 
 app = FastAPI(
-    title="TruthTrace API"
+    title="TruthTrace API",
+    version="1.0.0",
 )
 
 
@@ -53,8 +51,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-    
-
 
 
 # ==================================================
@@ -63,7 +59,6 @@ app.add_middleware(
 
 @app.get("/")
 def home():
-
     return {
         "message": "TruthTrace API is running successfully 🚀"
     }
@@ -88,11 +83,20 @@ def get_db():
 # UPLOAD FOLDER
 # ==================================================
 
-UPLOAD_FOLDER = "evidence_files"
+BASE_DIR = os.path.dirname(
+    os.path.dirname(
+        os.path.abspath(__file__)
+    )
+)
+
+UPLOAD_FOLDER = os.path.join(
+    BASE_DIR,
+    "evidence_files"
+)
 
 os.makedirs(
     UPLOAD_FOLDER,
-    exist_ok=True,
+    exist_ok=True
 )
 
 
@@ -100,16 +104,11 @@ os.makedirs(
 # SHA-256 CALCULATION
 # ==================================================
 
-def calculate_sha256(
-    file_path: str
-) -> str:
+def calculate_sha256(file_path: str) -> str:
 
     sha256 = hashlib.sha256()
 
-    with open(
-        file_path,
-        "rb",
-    ) as file:
+    with open(file_path, "rb") as file:
 
         while True:
 
@@ -128,29 +127,17 @@ def calculate_sha256(
 # ==================================================
 
 @app.get(
-    "/cases/",
-    response_model=list[
-        schemas.CaseResponse
-    ],
+    "/cases",
+    response_model=list[schemas.CaseResponse]
 )
 def get_cases(
-
-    db: Session = Depends(get_db),
-
+    db: Session = Depends(get_db)
 ):
 
     cases = (
-
-        db.query(
-            models.Case
-        )
-
-        .order_by(
-            models.Case.id.desc()
-        )
-
+        db.query(models.Case)
+        .order_by(models.Case.id.desc())
         .all()
-
     )
 
     return cases
@@ -161,15 +148,12 @@ def get_cases(
 # ==================================================
 
 @app.post(
-    "/cases/",
-    response_model=schemas.CaseResponse,
+    "/cases",
+    response_model=schemas.CaseResponse
 )
 def create_case(
-
     case: schemas.CaseCreate,
-
-    db: Session = Depends(get_db),
-
+    db: Session = Depends(get_db)
 ):
 
     new_case = models.Case(
@@ -182,15 +166,11 @@ def create_case(
 
     )
 
-    db.add(
-        new_case
-    )
+    db.add(new_case)
 
     db.commit()
 
-    db.refresh(
-        new_case
-    )
+    db.refresh(new_case)
 
     return new_case
 
@@ -201,35 +181,24 @@ def create_case(
 
 @app.get(
     "/cases/{case_id}",
-    response_model=schemas.CaseDetailsResponse,
+    response_model=schemas.CaseDetailsResponse
 )
 def get_case(
-
     case_id: int,
-
-    db: Session = Depends(get_db),
-
+    db: Session = Depends(get_db)
 ):
 
     case = (
-
-        db.query(
-            models.Case
-        )
-
-        .filter(
-            models.Case.id == case_id
-        )
-
+        db.query(models.Case)
+        .filter(models.Case.id == case_id)
         .first()
-
     )
 
     if not case:
 
         raise HTTPException(
             status_code=404,
-            detail="Case not found",
+            detail="Case not found"
         )
 
     return case
@@ -241,7 +210,7 @@ def get_case(
 
 @app.put(
     "/cases/{case_id}/status",
-    response_model=schemas.CaseResponse,
+    response_model=schemas.CaseResponse
 )
 def update_case_status(
 
@@ -249,39 +218,27 @@ def update_case_status(
 
     status_data: schemas.CaseStatusUpdate,
 
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db)
 
 ):
 
     case = (
-
-        db.query(
-            models.Case
-        )
-
-        .filter(
-            models.Case.id == case_id
-        )
-
+        db.query(models.Case)
+        .filter(models.Case.id == case_id)
         .first()
-
     )
 
     if not case:
 
         raise HTTPException(
             status_code=404,
-            detail="Case not found",
+            detail="Case not found"
         )
 
     allowed_statuses = {
-
         "Active",
-
         "Analyzed",
-
         "Closed",
-
     }
 
     if status_data.status not in allowed_statuses:
@@ -302,9 +259,7 @@ def update_case_status(
 
     db.commit()
 
-    db.refresh(
-        case
-    )
+    db.refresh(case)
 
     return case
 
@@ -313,9 +268,7 @@ def update_case_status(
 # UPLOAD EVIDENCE
 # ==================================================
 
-@app.post(
-    "/evidence/"
-)
+@app.post("/evidence")
 async def upload_evidence(
 
     case_id: int = Form(...),
@@ -327,24 +280,16 @@ async def upload_evidence(
 ):
 
     case = (
-
-        db.query(
-            models.Case
-        )
-
-        .filter(
-            models.Case.id == case_id
-        )
-
+        db.query(models.Case)
+        .filter(models.Case.id == case_id)
         .first()
-
     )
 
     if not case:
 
         raise HTTPException(
             status_code=404,
-            detail="Case not found",
+            detail="Case not found"
         )
 
     original_file_name = (
@@ -352,30 +297,33 @@ async def upload_evidence(
         or "unnamed_file"
     )
 
+    # Safe unique filename
     file_name = (
-        f"{case_id}_"
-        f"{original_file_name}"
+        f"{case_id}_{original_file_name}"
     )
 
     file_location = os.path.join(
-
         UPLOAD_FOLDER,
-
-        file_name,
-
+        file_name
     )
 
-    with open(
-        file_location,
-        "wb",
-    ) as buffer:
+    try:
 
-        shutil.copyfileobj(
+        with open(
+            file_location,
+            "wb"
+        ) as buffer:
 
-            file.file,
+            shutil.copyfileobj(
+                file.file,
+                buffer
+            )
 
-            buffer,
+    except Exception as error:
 
+        raise HTTPException(
+            status_code=500,
+            detail=f"Could not save file: {str(error)}"
         )
 
     sha256_hash = calculate_sha256(
@@ -392,7 +340,7 @@ async def upload_evidence(
 
         file_path=file_location,
 
-        file_type=file.content_type,
+        file_type=file.content_type or "application/octet-stream",
 
         file_size=file_size,
 
@@ -402,15 +350,11 @@ async def upload_evidence(
 
     )
 
-    db.add(
-        evidence
-    )
+    db.add(evidence)
 
     db.commit()
 
-    db.refresh(
-        evidence
-    )
+    db.refresh(evidence)
 
     return {
 
@@ -443,29 +387,19 @@ async def upload_evidence(
 # ==================================================
 
 @app.get(
-    "/evidence/",
-    response_model=list[
-        schemas.EvidenceResponse
-    ],
+    "/evidence",
+    response_model=list[schemas.EvidenceResponse]
 )
 def get_evidence(
 
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db)
 
 ):
 
     evidence = (
-
-        db.query(
-            models.Evidence
-        )
-
-        .order_by(
-            models.Evidence.id.desc()
-        )
-
+        db.query(models.Evidence)
+        .order_by(models.Evidence.id.desc())
         .all()
-
     )
 
     return evidence
@@ -477,55 +411,34 @@ def get_evidence(
 
 @app.get(
     "/evidence/case/{case_id}",
-    response_model=list[
-        schemas.EvidenceResponse
-    ],
+    response_model=list[schemas.EvidenceResponse]
 )
 def get_case_evidence(
 
     case_id: int,
 
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db)
 
 ):
 
     case = (
-
-        db.query(
-            models.Case
-        )
-
-        .filter(
-            models.Case.id == case_id
-        )
-
+        db.query(models.Case)
+        .filter(models.Case.id == case_id)
         .first()
-
     )
 
     if not case:
 
         raise HTTPException(
             status_code=404,
-            detail="Case not found",
+            detail="Case not found"
         )
 
     evidence = (
-
-        db.query(
-            models.Evidence
-        )
-
-        .filter(
-            models.Evidence.case_id == case_id
-        )
-
-        .order_by(
-            models.Evidence.id.desc()
-        )
-
+        db.query(models.Evidence)
+        .filter(models.Evidence.case_id == case_id)
+        .order_by(models.Evidence.id.desc())
         .all()
-
     )
 
     return evidence
@@ -542,29 +455,21 @@ def analyze_evidence(
 
     evidence_id: int,
 
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db)
 
 ):
 
     evidence = (
-
-        db.query(
-            models.Evidence
-        )
-
-        .filter(
-            models.Evidence.id == evidence_id
-        )
-
+        db.query(models.Evidence)
+        .filter(models.Evidence.id == evidence_id)
         .first()
-
     )
 
     if not evidence:
 
         raise HTTPException(
             status_code=404,
-            detail="Evidence not found",
+            detail="Evidence not found"
         )
 
     analysis_result = analyze_file(
