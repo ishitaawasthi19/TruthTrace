@@ -1,0 +1,22 @@
+# Python
+venv/
+__pycache__/
+*.py[cod]
+
+# Node
+node_modules/
+dist/
+
+# Environment
+.env
+
+# Database
+*.db
+
+# Uploaded evidence
+backend/evidence_files/
+backend/uploaded_evidence/
+
+# OS / Editor
+.DS_Store
+.vscode/
